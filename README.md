@@ -127,6 +127,17 @@ own Run shortcuts apply to the run configurations).
   (`{entryFiles, stdlib, commands: ["goose.run", "goose.showInstantiations"]}`).
   Those two commands, which the server's code lenses name, run in the plugin;
   others go to the server.
+- **Package modules**: the server analyzes an open file that no entry file
+  reaches as a program rooted at the file's directory, where a library
+  module's imports (`import crypto.bignum;` inside gslib) do not resolve:
+  they resolve against the package's root. When the project directory is a
+  package (`name.goose` declaring `namespace name;`; with several, the one
+  with a `name.build` sidecar), `GoosePackageRoots` writes, for each open
+  module of it, a two-line program in the IDE's system directory
+  (`import name from "<project>"; import name.crypto.bignum;`) and adds it
+  to the entry files, through `workspace/didChangeConfiguration` as editors
+  open and close. Files with `fn main` (tests, tools, examples) are programs
+  of their own and are left alone.
 - **Highlighting, braces, comments, snippets**: the plugin registers no file
   type of its own. It gives the IDE's TextMate plugin a bundle in the layout of
   a VS Code extension (`textmate/goose`: `package.json`, the grammar,

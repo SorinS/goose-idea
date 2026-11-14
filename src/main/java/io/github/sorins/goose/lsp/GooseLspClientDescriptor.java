@@ -20,8 +20,9 @@ import java.util.Map;
 /**
  * {@code goose lsp [--stdlib dir]}, started in the project directory, with
  * the initialization options of the VS Code extension's client: the entry
- * files, the standard library, and the client-side commands the server's
- * code lenses may name.
+ * files (with the plugin's programs for open package modules, see
+ * {@link GoosePackageRoots}), the standard library, and the client-side
+ * commands the server's code lenses may name.
  */
 public final class GooseLspClientDescriptor extends ProjectWideLspClientDescriptor {
     /** The commands this client runs itself (see {@link GooseLspCustomization}). */
@@ -62,7 +63,7 @@ public final class GooseLspClientDescriptor extends ProjectWideLspClientDescript
     public @NotNull Object createInitializationOptions() {
         Project project = getProject();
         GooseSettings settings = GooseSettings.getInstance(project);
-        return initializationOptions(settings.entryFiles(project), settings.stdlib(project));
+        return initializationOptions(GoosePackageRoots.getInstance(project).entryFiles(), settings.stdlib(project));
     }
 
     /** The options as the VS Code extension sends them: {@code {entryFiles, stdlib, commands}}. */

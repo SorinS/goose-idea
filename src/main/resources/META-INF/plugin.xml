@@ -28,6 +28,13 @@
     <notificationGroup id="Goose" displayType="BALLOON"/>
   </extensions>
 
+  <applicationListeners>
+    <listener class="io.github.sorins.goose.GooseBundleReloader" topic="com.intellij.ide.plugins.DynamicPluginListener"/>
+  </applicationListeners>
+  <projectListeners>
+    <listener class="io.github.sorins.goose.lsp.GooseEditorListener" topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"/>
+  </projectListeners>
+
   <actions>
     <group id="Goose.Actions" text="Goose" popup="true" icon="/icons/goose.svg">
       <add-to-group group-id="ToolsMenu" anchor="last"/>

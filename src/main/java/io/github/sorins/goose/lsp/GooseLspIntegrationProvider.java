@@ -12,6 +12,7 @@ import com.intellij.platform.lsp.api.LspClient;
 import com.intellij.platform.lsp.api.LspClientManager;
 import com.intellij.platform.lsp.api.LspIntegrationProvider;
 import com.intellij.platform.lsp.api.lsWidget.LspClientWidgetItem;
+import io.github.sorins.goose.GooseBundleReloader;
 import io.github.sorins.goose.GooseFiles;
 import io.github.sorins.goose.settings.GooseConfigurable;
 import io.github.sorins.goose.settings.GooseSettings;
@@ -28,6 +29,7 @@ public final class GooseLspIntegrationProvider implements LspIntegrationProvider
     @Override
     public void fileOpened(@NotNull Project project, @NotNull VirtualFile file, @NotNull LspClientStarter starter) {
         if (!GooseFiles.isGooseFile(file)) return;
+        GooseBundleReloader.ensureLoaded();
         GooseSettings settings = GooseSettings.getInstance(project);
         if (!settings.getState().useLanguageServer) return;
         if (settings.compiler(project) == null) {
@@ -35,6 +37,7 @@ public final class GooseLspIntegrationProvider implements LspIntegrationProvider
             return;
         }
         starter.ensureClientStarted(new GooseLspClientDescriptor(project));
+        GoosePackageRoots.getInstance(project).update();
     }
 
     @Override

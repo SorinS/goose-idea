@@ -109,10 +109,13 @@ makes one for you.
 
 ## 5. When something does not work
 
-- **No colors at all**: the TextMate bundle did not load. **Help | Show Log
-  in Finder** (Explorer, Files), open `idea.log` and search for
-  `Goose TextMate bundle not found`. Reinstalling the zip usually fixes it;
-  installing the jar alone, rather than the zip, does not.
+- **No colors for keywords, strings and comments** (only names colored,
+  by the server): the TextMate bundle did not load. The plugin reloads
+  TextMate's bundles when it is installed without a restart; if colors are
+  still missing, restart the IDE. Otherwise **Help | Show Log in Finder**
+  (Explorer, Files), open `idea.log` and search for
+  `Goose TextMate bundle not found`. Installing the jar alone, rather than
+  the zip, leaves the bundle out.
 - **Colors but no errors, completion or hover**: the language server is not
   running.
   - A balloon saying no compiler was found: set **Compiler** (step 3).
@@ -121,10 +124,14 @@ makes one for you.
   - Check **Start the language server** is on in the Goose settings.
   - In `idea.log`, look for `GooseLspClientDescriptor` lines: they give the
     exact command the plugin ran.
-- **Imports not found** (errors on `import` lines): the server runs in the
-  project directory and resolves imports from there and from the standard
-  library. Open the project at the folder the program's imports are
-  relative to, or set **Standard library** if the compiler cannot find it.
+- **Imports not found** (errors on `import` lines): a library module's
+  imports (`import crypto.bignum;` in gslib) resolve against the package's
+  root. When the project folder is a Goose package (it has `name.goose`
+  declaring `namespace name;`, as gslib has `gslib.goose`), the plugin has
+  each open module checked as part of the package by itself. Open the
+  package's folder as the project, not a folder inside it. For `import std`
+  and other standard modules, set **Standard library** if the compiler
+  cannot find it.
 - **Errors only in the open file, not the rest of the program**: set
   **Entry files** so the server knows the whole program.
 - **A compiler set in your shell profile is not found** when the IDE is
