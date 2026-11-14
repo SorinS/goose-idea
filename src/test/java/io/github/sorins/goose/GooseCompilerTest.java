@@ -1,5 +1,6 @@
 package io.github.sorins.goose;
 
+import io.github.sorins.goose.run.GooseRunConfiguration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -105,5 +106,16 @@ public class GooseCompilerTest {
         assertFalse(GooseFiles.isGooseFileName(".goose"));
         assertFalse(GooseFiles.isGooseFileName("main.goose.bak"));
         assertFalse(GooseFiles.isGooseFileName("goose"));
+    }
+
+    @Test
+    public void runConfigurationNamesShowTheDirectory() {
+        Path project = Path.of("/p");
+        assertEquals("main.goose", GooseRunConfiguration.name(GooseCompiler.Action.RUN, project.resolve("main.goose"), project));
+        assertEquals("handshake.goose (examples/tls)",
+                GooseRunConfiguration.name(GooseCompiler.Action.RUN, project.resolve("examples/tls/handshake.goose"), project));
+        assertEquals("Check Program handshake.goose (crypto/tls)",
+                GooseRunConfiguration.name(GooseCompiler.Action.CHECK, project.resolve("crypto/tls/handshake.goose"), project));
+        assertEquals("x.goose", GooseRunConfiguration.name(GooseCompiler.Action.RUN, Path.of("/elsewhere/x.goose"), project));
     }
 }

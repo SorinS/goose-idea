@@ -46,8 +46,20 @@ public final class GooseRunConfiguration extends LocatableConfigurationBase<Goos
     public @Nullable String suggestedName() {
         String file = getOptions().getFile();
         if (file.isBlank()) return null;
-        String name = Path.of(file).getFileName().toString();
-        GooseCompiler.Action action = getOptions().getAction();
+        return name(getOptions().getAction(), programFile(), GooseSettings.projectDir(getProject()));
+    }
+
+    /**
+     * A configuration's name: the file, with its directory in the project
+     * when it is not at the top ({@code handshake.goose (examples/tls)}), so
+     * that files of the same name in different directories are told apart.
+     */
+    public static @NotNull String name(@NotNull GooseCompiler.Action action, @NotNull Path file, @Nullable Path projectDir) {
+        String name = file.getFileName().toString();
+        Path parent = file.getParent();
+        if (parent != null && projectDir != null && parent.startsWith(projectDir) && !parent.equals(projectDir)) {
+            name += " (" + projectDir.relativize(parent).toString().replace('\\', '/') + ")";
+        }
         return action == GooseCompiler.Action.RUN ? name : action.title + " " + name;
     }
 

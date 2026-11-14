@@ -18,6 +18,7 @@ import io.github.sorins.goose.GoosePackage;
 import io.github.sorins.goose.settings.GooseSettings;
 import org.eclipse.lsp4j.DidChangeConfigurationParams;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -69,6 +70,20 @@ public final class GoosePackageRoots implements Disposable {
             if (root != null) entries.add(root);
         }
         return new ArrayList<>(entries);
+    }
+
+    /** The module of the project's package that {@code file} is, or null (a program, or no package). */
+    public @Nullable String moduleOf(@Nullable VirtualFile file) {
+        if (!GooseFiles.isGooseFile(file) || file.getFileSystem().getNioPath(file) == null) return null;
+        GoosePackage pkg = GoosePackage.at(GooseSettings.projectDir(project));
+        return pkg == null ? null : pkg.moduleOf(file.toNioPath(), text(file));
+    }
+
+    /** The plugin's program that checks {@code file}'s module as part of the package, or null. */
+    public @Nullable Path rootFor(@Nullable VirtualFile file) {
+        String module = moduleOf(file);
+        GoosePackage pkg = GoosePackage.at(GooseSettings.projectDir(project));
+        return module == null || pkg == null ? null : writeRoot(pkg, module);
     }
 
     /**

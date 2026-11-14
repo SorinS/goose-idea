@@ -10,6 +10,7 @@ import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiFileSystemItem;
 import io.github.sorins.goose.GooseCompiler;
 import io.github.sorins.goose.GooseFiles;
+import io.github.sorins.goose.lsp.GoosePackageRoots;
 import io.github.sorins.goose.settings.GooseSettings;
 import org.jetbrains.annotations.NotNull;
 
@@ -37,7 +38,8 @@ public final class GooseRunConfigurationProducer extends LazyRunConfigurationPro
                                                     @NotNull ConfigurationContext context,
                                                     @NotNull Ref<PsiElement> sourceElement) {
         VirtualFile file = gooseFile(context);
-        if (file == null) return false;
+        // A module of the project's package has no main to run.
+        if (file == null || GoosePackageRoots.getInstance(context.getProject()).moduleOf(file) != null) return false;
         GooseRunConfigurationOptions o = configuration.getOptions();
         o.setAction(GooseCompiler.Action.RUN);
         o.setFile(file.getPath());

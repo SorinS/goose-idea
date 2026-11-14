@@ -102,6 +102,13 @@ menu:
 - **Build Executable**: an executable next to the source.
 - **Generate C**: `file.c` next to the source.
 
+A library module (a file of the project's package with no `fn main`,
+such as gslib's `crypto/tls/handshake.goose`) is not a program: **Check
+Program** checks it as part of the package, and the other actions say so
+instead of compiling it alone. Run configurations are named with their
+folder (`handshake.goose (examples/tls)`), so files of the same name
+are told apart in the Run toolbar.
+
 For a saved setup with arguments, **Run | Edit Configurations...**, **+**,
 **Goose**: pick the action, the program file, its arguments and the working
 directory. Right-clicking a `.goose` file and choosing **Run 'file.goose'**
