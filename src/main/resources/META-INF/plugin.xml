@@ -1,0 +1,52 @@
+<idea-plugin>
+  <id>io.github.sorins.goose</id>
+  <name>Goose Language</name>
+  <vendor>Goose</vendor>
+  <description><![CDATA[
+    Support for the <a href="https://github.com/aardappel/goose">Goose</a> programming language:
+    syntax highlighting, brace matching, commenting and snippets from the Goose TextMate grammar, and
+    the Goose compiler's language server (<code>goose lsp</code>) for diagnostics as you type, completion,
+    hover, go to definition, find usages, rename, structure view, semantic highlighting, signature help,
+    inlay hints, folding, code lenses and formatting. Run configurations run, check and build Goose programs.
+  ]]></description>
+
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.modules.lsp</depends>
+  <depends>org.jetbrains.plugins.textmate</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <textmate.bundleProvider implementation="io.github.sorins.goose.GooseBundleProvider"/>
+    <fileIconProvider implementation="io.github.sorins.goose.GooseIconProvider" order="first"/>
+    <platform.lsp.integrationProvider implementation="io.github.sorins.goose.lsp.GooseLspIntegrationProvider"/>
+
+    <projectConfigurable parentId="language" instance="io.github.sorins.goose.settings.GooseConfigurable"
+                         id="io.github.sorins.goose.settings" displayName="Goose" nonDefaultProject="false"/>
+
+    <configurationType implementation="io.github.sorins.goose.run.GooseConfigurationType"/>
+    <runConfigurationProducer implementation="io.github.sorins.goose.run.GooseRunConfigurationProducer"/>
+
+    <notificationGroup id="Goose" displayType="BALLOON"/>
+  </extensions>
+
+  <actions>
+    <group id="Goose.Actions" text="Goose" popup="true" icon="/icons/goose.svg">
+      <add-to-group group-id="ToolsMenu" anchor="last"/>
+      <action id="Goose.Run" class="io.github.sorins.goose.actions.GooseAction$Run"
+              text="Run with JIT" description="Compile and run the Goose program with the JIT (goose run)"/>
+      <action id="Goose.Check" class="io.github.sorins.goose.actions.GooseAction$Check"
+              text="Check Program" description="Parse and typecheck the Goose program (goose check)"/>
+      <action id="Goose.Build" class="io.github.sorins.goose.actions.GooseAction$Build"
+              text="Build Executable" description="Build an executable beside the source (goose build)"/>
+      <action id="Goose.GenerateC" class="io.github.sorins.goose.actions.GooseAction$GenerateC"
+              text="Generate C" description="Write the program's C beside the source (goose -o file.c)"/>
+      <separator/>
+      <action id="Goose.RestartServer" class="io.github.sorins.goose.actions.RestartServerAction"
+              text="Restart Language Server" description="Stop and start goose lsp with the current settings"/>
+    </group>
+    <group id="Goose.EditorActions">
+      <reference ref="Goose.Run"/>
+      <reference ref="Goose.Check"/>
+      <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+    </group>
+  </actions>
+</idea-plugin>

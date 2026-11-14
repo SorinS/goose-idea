@@ -1,0 +1,17 @@
+Goose for IntelliJ
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This plugin includes files from the Goose VS Code extension
+(https://github.com/aardappel/goose, directory vscode/), which is licensed
+under the Apache License, Version 2.0 (the same LICENSE file):
+
+  textmate/goose/syntaxes/goose.tmLanguage.json   copied unchanged from vscode/syntaxes/goose.tmLanguage.json
+  textmate/goose/language-configuration.json      copied unchanged from vscode/language-configuration.json
+  textmate/goose/snippets/goose.json              copied unchanged from vscode/snippets/goose.json
+  textmate/goose/package.json                     reduced from vscode/package.json (languages, grammars, snippets only)
+  src/main/resources/icons/goose.svg              from vscode/fileicons/goose-dark-icon.svg, padded to a square, 16x16
+  src/main/resources/icons/goose_dark.svg         from vscode/fileicons/goose-light-icon.svg, padded to a square, 16x16
+  src/main/resources/META-INF/pluginIcon.svg      from vscode/fileicons/goose-dark-icon.svg, padded to a square, 40x40
+  src/main/resources/META-INF/pluginIcon_dark.svg from vscode/fileicons/goose-light-icon.svg, padded to a square, 40x40
+
+They were copied from goose.git at commit a5579b1e (2026-11-10).
