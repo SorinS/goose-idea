@@ -99,14 +99,30 @@ public final class GoosePackage {
         return module.toString();
     }
 
-    /** A program that declares this package and imports {@code module} of it. */
+    /**
+     * A program that declares this package and imports {@code module} of it,
+     * after each enclosing module the package has ({@code name.krb5} for
+     * {@code name.krb5.crypto}, when {@code krb5.goose} is at the root): a
+     * module may use what its library's entry declares without importing
+     * it, since every real program imports the entry first.
+     */
     public @NotNull String rootSource(@NotNull String module) {
         String path = dir.toAbsolutePath().normalize().toString().replace('\\', '/').replace("\"", "\\\"");
         StringBuilder s = new StringBuilder()
                 .append("// Made by the Goose plugin, so that the language server checks\n")
                 .append("// ").append(module).append(" as part of its package.\n")
                 .append("import ").append(name).append(" from \"").append(path).append("\";\n");
-        if (!module.equals(name)) s.append("import ").append(module).append(";\n");
+        if (module.equals(name)) return s.toString();
+        String[] parts = module.substring(name.length() + 1).split("\\.");
+        StringBuilder prefix = new StringBuilder(name);
+        Path at = dir;
+        for (int i = 0; i < parts.length - 1; i++) {
+            prefix.append('.').append(parts[i]);
+            if (Files.isRegularFile(at.resolve(parts[i] + "." + GooseFiles.EXTENSION)))
+                s.append("import ").append(prefix).append(";\n");
+            at = at.resolve(parts[i]);
+        }
+        s.append("import ").append(module).append(";\n");
         return s.toString();
     }
 

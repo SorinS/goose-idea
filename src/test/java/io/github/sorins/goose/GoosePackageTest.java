@@ -99,6 +99,40 @@ public class GoosePackageTest {
         assertEquals("through the root", 0, check(compiler, root));
     }
 
+    /** gslib's krb5: krb5.goose declares constants that krb5/crypto.goose uses without importing it. */
+    private Path libraryWithEntry() throws IOException {
+        Path dir = library();
+        write(dir.resolve("krb5.goose"), "namespace krb5;\nlet ETYPE: i32 = 18;\n");
+        write(dir.resolve("krb5/crypto.goose"), "namespace krb5;\nfn is_aes(e: i32) -> bool { e == ETYPE }\n");
+        return dir;
+    }
+
+    @Test
+    public void rootSourceImportsTheEnclosingEntryFirst() throws IOException {
+        Path dir = libraryWithEntry();
+        GoosePackage pkg = GoosePackage.at(dir);
+        assertNotNull(pkg);
+        String source = pkg.rootSource("lib.krb5.crypto");
+        int entry = source.indexOf("import lib.krb5;\n");
+        assertTrue(source, entry >= 0 && entry < source.indexOf("import lib.krb5.crypto;\n"));
+        // No crypto.goose beside crypto/, so nothing is imported for it.
+        assertFalse(pkg.rootSource("lib.crypto.user").contains("import lib.crypto;\n"));
+    }
+
+    /** A module that leans on its library's entry checks through the root. */
+    @Test
+    public void compilerChecksAModuleThatUsesItsEntry() throws Exception {
+        Path compiler = GooseCompiler.find(System.getProperty("goose.compiler", ""), null);
+        Assume.assumeNotNull(compiler);
+        Path dir = libraryWithEntry();
+        GoosePackage pkg = GoosePackage.at(dir);
+        assertNotNull(pkg);
+        Path module = dir.resolve("krb5/crypto.goose");
+        Path root = tmp.newFolder("roots2").toPath().resolve("root.goose");
+        Files.writeString(root, pkg.rootSource(pkg.moduleOf(module, Files.readString(module))));
+        assertEquals("through the root", 0, check(compiler, root));
+    }
+
     private static int check(Path compiler, Path file) throws Exception {
         Process p = new ProcessBuilder(compiler.toString(), "check", file.toString()).redirectErrorStream(true).start();
         String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
