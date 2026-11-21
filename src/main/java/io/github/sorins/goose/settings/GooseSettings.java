@@ -7,7 +7,12 @@ import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.project.Project;
 import com.intellij.util.execution.ParametersListUtil;
 import com.intellij.util.xmlb.XmlSerializerUtil;
+import com.intellij.execution.ExecutionException;
+import com.intellij.execution.configurations.GeneralCommandLine;
+import com.intellij.execution.process.ProcessOutput;
+import com.intellij.execution.util.ExecUtil;
 import io.github.sorins.goose.GooseCompiler;
+import io.github.sorins.goose.debug.GooseDebugAdapter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -38,6 +43,12 @@ public final class GooseSettings implements PersistentStateComponent<GooseSettin
         public boolean useLanguageServer = true;
         /** goose.runArguments: the program's arguments for Run with JIT, as a command line. */
         public String runArguments = "";
+        /** The debug adapter: AUTO, GOOSE_DAP or LLDB_DAP ({@link GooseDebugAdapter.Kind}). */
+        public String debugAdapter = GooseDebugAdapter.Kind.AUTO.name();
+        /** The debug adapter's executable, or a command on PATH. Empty searches for it. */
+        public String debugAdapterPath = "";
+        /** Stop the debugger where a Goose runtime error (assert, bounds, overflow) aborts. */
+        public boolean stopOnRuntimeErrors = true;
     }
 
     private State state = new State();
@@ -83,6 +94,35 @@ public final class GooseSettings implements PersistentStateComponent<GooseSettin
             if (Files.isRegularFile(entry)) return entry;
         }
         return null;
+    }
+
+    public @NotNull GooseDebugAdapter.Kind debugAdapterKind() {
+        return GooseDebugAdapter.Kind.parse(state.debugAdapter);
+    }
+
+    /** The debug adapter these settings find, or null. */
+    public @Nullable GooseDebugAdapter.Found debugAdapter(@NotNull Project project) {
+        String home = System.getProperty("user.home");
+        return GooseDebugAdapter.find(debugAdapterKind(), state.debugAdapterPath, projectDir(project), compiler(project),
+                System.getenv("PATH"), home == null ? null : Path.of(home), GooseDebugAdapter.Os.current(),
+                GooseDebugAdapter::isExecutableFile, GooseSettings::xcrunLldbDap);
+    }
+
+    private static volatile Path xcrunLldbDap;
+    private static volatile boolean xcrunAsked;
+
+    /** {@code xcrun -f lldb-dap}, asked once (macOS, when no lldb-dap is found elsewhere). */
+    private static @Nullable Path xcrunLldbDap() {
+        if (xcrunAsked) return xcrunLldbDap;
+        xcrunAsked = true;
+        try {
+            ProcessOutput output = ExecUtil.execAndGetOutput(new GeneralCommandLine("xcrun", "-f", "lldb-dap"), 5000);
+            String path = output.getStdout().trim();
+            if (output.getExitCode() == 0 && !path.isEmpty()) xcrunLldbDap = Path.of(path);
+        } catch (ExecutionException | RuntimeException ignored) {
+            // No xcrun: not macOS, or no developer tools.
+        }
+        return xcrunLldbDap;
     }
 
     public @NotNull List<String> runArguments() {

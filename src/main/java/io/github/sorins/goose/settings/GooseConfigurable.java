@@ -3,7 +3,9 @@ package io.github.sorins.goose.settings;
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
 import com.intellij.openapi.options.Configurable;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
+import com.intellij.ui.SimpleListCellRenderer;
 import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBScrollPane;
@@ -11,12 +13,14 @@ import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.FormBuilder;
 import com.intellij.util.ui.UIUtil;
+import io.github.sorins.goose.debug.GooseDebugAdapter;
 import io.github.sorins.goose.lsp.GooseLspIntegrationProvider;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.JComponent;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import java.nio.file.Path;
 import java.util.Objects;
@@ -30,6 +34,10 @@ public final class GooseConfigurable implements Configurable {
     private JBCheckBox useLanguageServer;
     private JBTextField runArguments;
     private JBLabel found;
+    private ComboBox<GooseDebugAdapter.Kind> debugAdapter;
+    private TextFieldWithBrowseButton debugAdapterPath;
+    private JBCheckBox stopOnRuntimeErrors;
+    private JBLabel foundAdapter;
 
     public GooseConfigurable(@NotNull Project project) {
         this.project = project;
@@ -54,6 +62,21 @@ public final class GooseConfigurable implements Configurable {
         found = new JBLabel();
         found.setComponentStyle(UIUtil.ComponentStyle.SMALL);
         found.setFontColor(UIUtil.FontColor.BRIGHTER);
+        debugAdapter = new ComboBox<>(GooseDebugAdapter.Kind.values());
+        debugAdapter.setRenderer(new SimpleListCellRenderer<>() {
+            @Override
+            public void customize(@NotNull JList<? extends GooseDebugAdapter.Kind> list, GooseDebugAdapter.Kind value,
+                                  int index, boolean selected, boolean hasFocus) {
+                setText(value == null ? "" : value.title);
+            }
+        });
+        debugAdapterPath = new TextFieldWithBrowseButton();
+        debugAdapterPath.addBrowseFolderListener(project,
+                FileChooserDescriptorFactory.createSingleFileNoJarsDescriptor().withTitle("Debug Adapter"));
+        stopOnRuntimeErrors = new JBCheckBox("Stop on Goose runtime errors (assert, bounds and overflow checks)");
+        foundAdapter = new JBLabel();
+        foundAdapter.setComponentStyle(UIUtil.ComponentStyle.SMALL);
+        foundAdapter.setFontColor(UIUtil.FontColor.BRIGHTER);
 
         JPanel panel = FormBuilder.createFormBuilder()
                 .addLabeledComponent("Compiler:", compilerPath)
@@ -72,6 +95,15 @@ public final class GooseConfigurable implements Configurable {
                 .addLabeledComponent("Program arguments:", runArguments)
                 .addComponentToRightColumn(comment("Passed after -- by Run with JIT."))
                 .addComponent(useLanguageServer)
+                .addSeparator()
+                .addLabeledComponent("Debug adapter:", debugAdapter)
+                .addLabeledComponent("Adapter path:", debugAdapterPath)
+                .addComponentToRightColumn(comment(
+                        "Empty searches goose-dap beside the compiler and on PATH, then lldb-dap (the Command Line "
+                                + "Tools' on macOS; lldb-dap, lldb-vscode or lldb-dap-NN on PATH on Linux; LLVM's on "
+                                + "Windows). Debug builds with goose build -g, which needs a compiler with the debugger patches."))
+                .addComponentToRightColumn(foundAdapter)
+                .addComponent(stopOnRuntimeErrors)
                 .addComponentFillVertically(new JPanel(), 0)
                 .getPanel();
         reset();
@@ -93,7 +125,14 @@ public final class GooseConfigurable implements Configurable {
                 || !Objects.equals(stdlibPath.getText().trim(), s.stdlibPath)
                 || !Objects.equals(entryFiles.getText().trim(), s.entryFiles)
                 || useLanguageServer.isSelected() != s.useLanguageServer
-                || !Objects.equals(runArguments.getText().trim(), s.runArguments);
+                || !Objects.equals(runArguments.getText().trim(), s.runArguments)
+                || selectedKind() != GooseDebugAdapter.Kind.parse(s.debugAdapter)
+                || !Objects.equals(debugAdapterPath.getText().trim(), s.debugAdapterPath)
+                || stopOnRuntimeErrors.isSelected() != s.stopOnRuntimeErrors;
+    }
+
+    private GooseDebugAdapter.Kind selectedKind() {
+        return debugAdapter.getSelectedItem() instanceof GooseDebugAdapter.Kind k ? k : GooseDebugAdapter.Kind.AUTO;
     }
 
     @Override
@@ -108,6 +147,9 @@ public final class GooseConfigurable implements Configurable {
         s.entryFiles = entryFiles.getText().trim();
         s.useLanguageServer = useLanguageServer.isSelected();
         s.runArguments = runArguments.getText().trim();
+        s.debugAdapter = selectedKind().name();
+        s.debugAdapterPath = debugAdapterPath.getText().trim();
+        s.stopOnRuntimeErrors = stopOnRuntimeErrors.isSelected();
         updateFound();
         if (serverChanged) GooseLspIntegrationProvider.restart(project);
     }
@@ -120,12 +162,17 @@ public final class GooseConfigurable implements Configurable {
         entryFiles.setText(s.entryFiles);
         useLanguageServer.setSelected(s.useLanguageServer);
         runArguments.setText(s.runArguments);
+        debugAdapter.setSelectedItem(GooseDebugAdapter.Kind.parse(s.debugAdapter));
+        debugAdapterPath.setText(s.debugAdapterPath);
+        stopOnRuntimeErrors.setSelected(s.stopOnRuntimeErrors);
         updateFound();
     }
 
     private void updateFound() {
         Path compiler = GooseSettings.getInstance(project).compiler(project);
         found.setText(compiler == null ? "No Goose compiler found." : "Using " + compiler);
+        GooseDebugAdapter.Found adapter = GooseSettings.getInstance(project).debugAdapter(project);
+        foundAdapter.setText(adapter == null ? "No debug adapter found." : "Using " + adapter.kind().title + ": " + adapter.path());
     }
 
     @Override
@@ -136,5 +183,9 @@ public final class GooseConfigurable implements Configurable {
         useLanguageServer = null;
         runArguments = null;
         found = null;
+        debugAdapter = null;
+        debugAdapterPath = null;
+        stopOnRuntimeErrors = null;
+        foundAdapter = null;
     }
 }

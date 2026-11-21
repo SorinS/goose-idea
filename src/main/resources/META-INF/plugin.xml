@@ -7,12 +7,19 @@
     syntax highlighting, brace matching, commenting and snippets from the Goose TextMate grammar, and
     the Goose compiler's language server (<code>goose lsp</code>) for diagnostics as you type, completion,
     hover, go to definition, find usages, rename, structure view, semantic highlighting, signature help,
-    inlay hints, folding, code lenses and formatting. Run configurations run, check and build Goose programs.
+    inlay hints, folding, code lenses and formatting. Run configurations run, check and build Goose programs,
+    and debug them: line breakpoints in .goose files, stepping, the call stack, variables and watches,
+    through lldb-dap (or the goose-dap proxy) and the platform's Debug Adapter Protocol client.
   ]]></description>
 
   <depends>com.intellij.modules.platform</depends>
   <depends>com.intellij.modules.lsp</depends>
   <depends>org.jetbrains.plugins.textmate</depends>
+  <!-- The platform's DAP client. It is a content module with no plugin alias,
+       so it is named here rather than with <depends>. -->
+  <dependencies>
+    <module name="intellij.platform.dap"/>
+  </dependencies>
 
   <extensions defaultExtensionNs="com.intellij">
     <textmate.bundleProvider implementation="io.github.sorins.goose.GooseBundleProvider"/>
@@ -26,6 +33,15 @@
     <runConfigurationProducer implementation="io.github.sorins.goose.run.GooseRunConfigurationProducer"/>
 
     <notificationGroup id="Goose" displayType="BALLOON"/>
+
+    <xdebugger.breakpointType implementation="io.github.sorins.goose.debug.GooseLineBreakpointType"/>
+    <xdebugger.breakpointType implementation="io.github.sorins.goose.debug.GooseRuntimeErrorBreakpointType"/>
+    <runLineMarkerContributor language="textmate" implementationClass="io.github.sorins.goose.run.GooseRunLineMarkerContributor"/>
+  </extensions>
+
+  <extensions defaultExtensionNs="com.intellij.platform.dap">
+    <debugAdapterSupportProvider implementation="io.github.sorins.goose.debug.GooseDebugAdapterSupportProvider"/>
+    <launchArgumentsProvider implementation="io.github.sorins.goose.debug.GooseDapLaunchArgumentsProvider"/>
   </extensions>
 
   <applicationListeners>

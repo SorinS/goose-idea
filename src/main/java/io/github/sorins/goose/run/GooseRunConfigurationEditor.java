@@ -1,5 +1,6 @@
 package io.github.sorins.goose.run;
 
+import com.intellij.execution.configuration.EnvironmentVariablesTextFieldWithBrowseButton;
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
 import com.intellij.openapi.options.SettingsEditor;
 import com.intellij.openapi.project.Project;
@@ -19,9 +20,11 @@ final class GooseRunConfigurationEditor extends SettingsEditor<GooseRunConfigura
     private final TextFieldWithBrowseButton file = new TextFieldWithBrowseButton();
     private final JBTextField programArguments = new JBTextField();
     private final TextFieldWithBrowseButton workingDirectory = new TextFieldWithBrowseButton();
+    private final EnvironmentVariablesTextFieldWithBrowseButton environment;
     private final JComponent panel;
 
     GooseRunConfigurationEditor(Project project) {
+        environment = new EnvironmentVariablesTextFieldWithBrowseButton(project);
         action.setRenderer(new SimpleListCellRenderer<>() {
             @Override
             public void customize(@NotNull JList<? extends GooseCompiler.Action> list, GooseCompiler.Action value,
@@ -35,9 +38,11 @@ final class GooseRunConfigurationEditor extends SettingsEditor<GooseRunConfigura
                 .addLabeledComponent("Action:", action)
                 .addLabeledComponent("Program file:", file)
                 .addLabeledComponent("Program arguments:", programArguments)
-                .addTooltip("Passed after -- when running with the JIT.")
+                .addTooltip("Passed after -- when running with the JIT, and to the program under Debug.")
                 .addLabeledComponent("Working directory:", workingDirectory)
                 .addTooltip("Empty uses the project directory.")
+                .addLabeledComponent("Environment variables:", environment)
+                .addTooltip("Debug (a Run with JIT configuration) builds with goose build -g and runs the executable under the debug adapter.")
                 .getPanel();
     }
 
@@ -48,6 +53,7 @@ final class GooseRunConfigurationEditor extends SettingsEditor<GooseRunConfigura
         file.setText(o.getFile());
         programArguments.setText(o.getProgramArguments());
         workingDirectory.setText(o.getWorkingDirectory());
+        environment.setEnvs(o.getEnvironment());
     }
 
     @Override
@@ -58,6 +64,7 @@ final class GooseRunConfigurationEditor extends SettingsEditor<GooseRunConfigura
         o.setFile(file.getText().trim());
         o.setProgramArguments(programArguments.getText().trim());
         o.setWorkingDirectory(workingDirectory.getText().trim());
+        o.setEnvironment(environment.getEnvs());
     }
 
     @Override

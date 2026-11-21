@@ -25,6 +25,8 @@ dependencies {
     intellijPlatform {
         local(providers.gradleProperty('platformLocalPath'))
         bundledPlugin('org.jetbrains.plugins.textmate')
+        // The platform's DAP client (experimental API) for Goose debugging.
+        bundledModule('intellij.platform.dap')
         testFramework(TestFrameworkType.Platform.INSTANCE)
     }
     testImplementation 'junit:junit:4.13.2'
@@ -56,15 +58,34 @@ intellijPlatform {
 // The TextMate bundle (grammar, language configuration, snippets) is read by
 // the TextMate plugin from a directory on disk, so it ships next to lib/ in
 // the plugin's directory rather than inside the jar.
+// goose_lldb.py (the LLDB formatters and goose-* commands that raw lldb-dap
+// loads through initCommands) ships the same way, as lldb/goose_lldb.py.
 tasks.named('prepareSandbox') {
     from(layout.projectDirectory.dir('textmate')) {
         into(intellijPlatform.projectName.map { "$it/textmate" })
+    }
+    from(layout.projectDirectory.dir('lldb')) {
+        into(intellijPlatform.projectName.map { "$it/lldb" })
     }
 }
 tasks.named('prepareTestSandbox') {
     from(layout.projectDirectory.dir('textmate')) {
         into(intellijPlatform.projectName.map { "$it/textmate" })
     }
+    from(layout.projectDirectory.dir('lldb')) {
+        into(intellijPlatform.projectName.map { "$it/lldb" })
+    }
+}
+
+// The copy in lldb/ is vendored, so that a build needs nothing outside this
+// repository. ./gradlew syncGooseLldb refreshes it from the debugger
+// repository (-PgooseLldbSource=path/goose_lldb.py names another copy).
+tasks.register('syncGooseLldb', Copy) {
+    def source = file(providers.gradleProperty('gooseLldbSource')
+            .getOrElse(System.getProperty('user.home') + '/Dev/Goose/goose-debugger.git/lldb/goose_lldb.py'))
+    onlyIf { source.isFile() }
+    from(source)
+    into(layout.projectDirectory.dir('lldb'))
 }
 
 def legalFiles = tasks.register('legalFiles', Copy) {
@@ -76,4 +97,10 @@ sourceSets.main.resources.srcDir(legalFiles.map { layout.buildDirectory.dir('leg
 tasks.named('test') {
     // The headless LSP test runs the compiler when it can find one.
     systemProperty 'goose.compiler', providers.gradleProperty('gooseCompiler').getOrElse('')
+    // The headless debugger test builds with a compiler that has -g (goose
+    // build --debug-info) and drives lldb-dap, and goose-dap when -PgooseDap
+    // names it; each part is skipped without what it needs.
+    systemProperty 'goose.debugCompiler', providers.gradleProperty('gooseDebugCompiler').getOrElse('')
+    systemProperty 'goose.lldbDap', providers.gradleProperty('lldbDap').getOrElse('')
+    systemProperty 'goose.gooseDap', providers.gradleProperty('gooseDap').getOrElse('')
 }
