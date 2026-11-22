@@ -12,6 +12,7 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.FormBuilder;
+import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
 import io.github.sorins.goose.debug.GooseDebugAdapter;
 import io.github.sorins.goose.lsp.GooseLspIntegrationProvider;
@@ -110,13 +111,17 @@ public final class GooseConfigurable implements Configurable {
         return panel;
     }
 
+    // An HTML label is as wide as its text on one line, which made the form
+    // (and its browse buttons) wider than the window; a body width wraps it.
     private static JComponent comment(String text) {
-        JBLabel label = new JBLabel("<html>" + text + "</html>");
+        JBLabel label = new JBLabel("<html><body style='width: " + JBUI.scale(COMMENT_WIDTH) + "px'>"
+                + text + "</body></html>");
         label.setComponentStyle(UIUtil.ComponentStyle.SMALL);
         label.setFontColor(UIUtil.FontColor.BRIGHTER);
-        label.setAllowAutoWrapping(true);
         return label;
     }
+
+    private static final int COMMENT_WIDTH = 480;
 
     @Override
     public boolean isModified() {

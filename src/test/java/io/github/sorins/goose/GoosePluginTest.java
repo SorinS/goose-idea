@@ -3,6 +3,7 @@ package io.github.sorins.goose;
 import com.intellij.openapi.extensions.ExtensionPointName;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import io.github.sorins.goose.run.GooseConsoleFilter;
+import io.github.sorins.goose.settings.GooseConfigurable;
 import io.github.sorins.goose.settings.GooseSettings;
 import org.jetbrains.plugins.textmate.TextMateService;
 import org.jetbrains.plugins.textmate.api.TextMateBundleProvider;
@@ -76,6 +77,20 @@ public class GoosePluginTest extends BasePlatformTestCase {
         assertTrue(settings.getState().useLanguageServer);
         assertNull(settings.stdlib(getProject()));
         assertEquals(List.of(), settings.entryFiles(getProject()));
+    }
+
+    /**
+     * The settings page fits a settings dialog: its help texts wrap rather
+     * than widen the form, which pushed the browse buttons off-screen.
+     */
+    public void testSettingsPageFitsTheDialog() {
+        GooseConfigurable configurable = new GooseConfigurable(getProject());
+        try {
+            int width = configurable.createComponent().getPreferredSize().width;
+            assertTrue("preferred width " + width, width <= 800);
+        } finally {
+            configurable.disposeUIResources();
+        }
     }
 
     public void testConsoleFilterPattern() {
