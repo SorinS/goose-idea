@@ -31,6 +31,15 @@ compile unit, when it still exists: the C declares them in an anonymous
 enum that dsymutil drops from the debug info. Set GOOSE_LLDB_CSOURCE=0 to
 turn that off as well and see only what DWARF gives.
 
+On Windows LLDB reads a PDB, which keeps a typedef of a struct (sl_u8,
+a4_i32) but not one of a pointer or a scalar: a variable's type is the
+canonical one (unsigned char * for uint8_t *, long long for gs_i64,
+Node_g * for r_Node_g and o_Node_g), and a stdint name is not a type
+FindFirstType finds. There an unsigned char * is a variable-size value, a
+pointer to a scalar or a Goose struct is a reference (the map, where there
+is one, says which kind), and the scalar types this module makes children
+of are LLDB's basic types.
+
 Nothing here may raise into LLDB: every entry point catches its errors and
 falls back to showing less.
 """
@@ -39,6 +48,7 @@ import json
 import os
 import re
 import struct
+import sys
 
 import lldb
 
@@ -58,6 +68,31 @@ _FIXED_RE = re.compile(r"^a[0-9]+_")
 _LIMITED_RE = re.compile(r"^l[0-9]+_")
 # A Goose field, local or function name: x_g, it_g_2, bump_g_1, x_g2.
 _NAME_RE = re.compile(r"^(.+?)_g(_?[0-9]+)?$")
+
+# Debug information from a PDB (above): LLDB on Windows reads no other kind
+# for an MSVC-built program.
+PDB = sys.platform == "win32"
+# How a variable-size value's uint8_t * is spelled.
+_BYTES_PTR = ("uint8_t *", "unsigned char *") if PDB else ("uint8_t *",)
+# The basic type behind each C scalar name the module asks for, where the
+# debug information has no such name.
+_BASIC = {
+    "int8_t": lldb.eBasicTypeSignedChar, "uint8_t": lldb.eBasicTypeUnsignedChar,
+    "int16_t": lldb.eBasicTypeShort, "uint16_t": lldb.eBasicTypeUnsignedShort,
+    "int32_t": lldb.eBasicTypeInt, "uint32_t": lldb.eBasicTypeUnsignedInt,
+    "int64_t": lldb.eBasicTypeLongLong, "uint64_t": lldb.eBasicTypeUnsignedLongLong,
+    "float": lldb.eBasicTypeFloat, "double": lldb.eBasicTypeDouble,
+}
+
+
+def find_type(target, name):
+    """The type named name, or for a C scalar name the basic type it stands
+    for when the debug information has no such name (a PDB); an invalid
+    SBType when neither."""
+    t = target.FindFirstType(name)
+    if t.IsValid() or name not in _BASIC:
+        return t
+    return target.GetBasicType(_BASIC[name])
 
 
 def _env_on(name):
@@ -127,8 +162,12 @@ def classify(t):
             if name.startswith("o_"):
                 return "opt"
             return None
-        if name == "uint8_t *":
+        if name in _BYTES_PTR:
             return "bytes"
+        if PDB and canon.IsPointerType() and _referent(canon.GetPointeeType()):
+            # A T& or T? whose r_/o_ typedef the PDB dropped: shown as T?,
+            # null or the target, unless the map says more.
+            return "opt"
         fs = _fields(t)
         if fs is None:
             return None
@@ -156,6 +195,16 @@ def classify(t):
     except Exception:
         pass
     return None
+
+
+def _referent(t):
+    """Whether a pointer to t is a Goose reference: t is a scalar or a Goose
+    struct or enum (not a runtime type such as gs_rhdr or gs_stack)."""
+    t = t.GetCanonicalType()
+    if t.GetBasicType() not in (lldb.eBasicTypeInvalid, lldb.eBasicTypeVoid, lldb.eBasicTypeChar):
+        return True
+    n = type_name(t)
+    return _is_goose_name(n) and not n.startswith("gs_")
 
 
 def recognize(sbtype, internal_dict):
@@ -996,7 +1045,7 @@ def c_type_for(target, gmap, t):
         return target_ct.GetPointerType() if target_ct is not None else None
     if not name:
         return None
-    ct = target.FindFirstType(name)
+    ct = find_type(target, name)
     return ct if ct.IsValid() else None
 
 
@@ -1019,7 +1068,7 @@ def goose_type_of(valobj, gmap):
         name = valobj.GetName() or ""
         tn = type_name(valobj.GetType())
         la = valobj.GetLoadAddress()
-        if tn == "uint8_t *":
+        if tn in _BYTES_PTR:
             t = _registry.get(("p", valobj.GetValueAsUnsigned(), name))
         else:
             t = _registry.get((la, tn, name))
@@ -1032,9 +1081,11 @@ def goose_type_of(valobj, gmap):
                 fv = frame.FindVariable(name)
                 if fv.IsValid() and fv.GetLoadAddress() == la:
                     return parse_type(l["type"])
-            t = _type_by_path(valobj, frame, gmap)
-            if t is not None:
-                return t
+        # A global's field has no frame where LLDB on Windows lists it
+        # (target variable).
+        t = _type_by_path(valobj, frame, gmap)
+        if t is not None:
+            return t
         td = gmap.types_by_c.get(tn)
         if td is not None:
             return ("named", td["name"])
@@ -1057,7 +1108,8 @@ def _type_by_path(valobj, frame, gmap):
     toks = [x for x in _PATH_RE.findall(st.GetData() or "") if x not in (".", "->")]
     if len(toks) < 2:
         return None
-    l = gmap.local(frame.GetFunctionName(), toks[0])
+    toks[0] = toks[0].lstrip(":")   # A PDB's global is ::gs_globals_main.
+    l = gmap.local(frame.GetFunctionName(), toks[0]) if frame.IsValid() else None
     rest = toks[1:]
     if l is None and toks[0] == gmap.globals_main:
         # A global: a field of the main program's globals block.
@@ -1106,7 +1158,7 @@ def value_location(valobj, t):
     """Where a value of Goose type t that LLDB holds as valobj starts in
     memory, or None. A variable-size value is a uint8_t * to its bytes; a
     reference or optional, and gs_rref, hold the pointer in place."""
-    if type_name(valobj.GetType()) == "uint8_t *":
+    if type_name(valobj.GetType()) in _BYTES_PTR:
         # A variable-size local, or a child this module made for a value
         # with no C type of its own: either way the pointer is the address.
         return valobj.GetValueAsUnsigned()
@@ -1157,7 +1209,7 @@ def map_children(valobj):
     except Exception:
         return []
     out = []
-    u8p = target.FindFirstType("uint8_t").GetPointerType()
+    u8p = find_type(target, "uint8_t").GetPointerType()
     order = target.GetByteOrder()
     for name, a, ct_g in kids[:MAX_CHILDREN]:
         ct = c_type_for(target, gmap, ct_g)
@@ -1275,7 +1327,11 @@ class GooseSynth:
         return None
 
     def has_children(self):
-        return len(self.kids) > 0
+        # Asked before num_children by some front ends (lldb-vscode 16), so
+        # before update has run: a kind that can have children says so.
+        if not self.kids:
+            self.update()
+        return len(self.kids) > 0 or self.kind not in (None, "cenum")
 
 
 def _cname(v):
@@ -1691,7 +1747,7 @@ def cmd_as(debugger, command, exe_ctx, result, internal_dict):
         if not v.IsValid() or v.GetError().Fail():
             result.SetError("no variable %s" % path)
             return
-        et = exe_ctx.GetTarget().FindFirstType(_SCALARS.get(tname, tname))
+        et = find_type(exe_ctx.GetTarget(), _SCALARS.get(tname, tname))
         if not et.IsValid() or et.GetByteSize() == 0:
             result.SetError("unknown type %s" % tname)
             return
@@ -1743,8 +1799,9 @@ def __lldb_init_module(debugger, internal_dict):
     cat.AddTypeSummary(spec, lldb.SBTypeSummary.CreateWithFunctionName("%s.summary" % mod, opts))
     cat.AddTypeSynthetic(spec, lldb.SBTypeSynthetic.CreateWithClassName(
         "%s.GooseSynth" % mod, lldb.eTypeOptionCascade))
-    # u8 is a number in Goose; there is no char type.
-    for t in ("uint8_t", "int8_t"):
+    # u8 is a number in Goose; there is no char type. A PDB names them by
+    # their canonical types.
+    for t in ("uint8_t", "int8_t") + (("unsigned char", "signed char") if PDB else ()):
         cat.AddTypeFormat(lldb.SBTypeNameSpecifier(t, False),
                           lldb.SBTypeFormat(lldb.eFormatDecimal,
                                             lldb.eTypeOptionCascade | lldb.eTypeOptionSkipPointers
