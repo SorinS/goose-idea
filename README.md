@@ -18,7 +18,8 @@ export JAVA_HOME="/Applications/IntelliJ IDEA.app/Contents/jbr/Contents/Home"
 ./gradlew buildPlugin
 ```
 
-This makes `build/distributions/goose-idea-0.1.0.zip`. In the IDE:
+This makes `build/distributions/goose-idea-<version>.zip` (the version is
+`pluginVersion` in `gradle.properties`). In the IDE:
 **Settings | Plugins**, the gear icon, **Install Plugin from Disk...**, pick the
 zip, and restart the IDE when asked.
 

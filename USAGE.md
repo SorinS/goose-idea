@@ -14,7 +14,8 @@ export JAVA_HOME="/Applications/IntelliJ IDEA.app/Contents/jbr/Contents/Home"
 ./gradlew buildPlugin
 ```
 
-The plugin is `build/distributions/goose-idea-0.1.0.zip`. The first build
+The plugin is `build/distributions/goose-idea-<version>.zip`, the version
+being `pluginVersion` in `gradle.properties`. The first build
 downloads Gradle and its plugins and takes a few minutes; later ones take
 seconds.
 
@@ -27,7 +28,7 @@ In IntelliJ IDEA, GoLand or CLion (2026.2 or later):
 
 1. **Settings | Plugins**.
 2. The gear icon, **Install Plugin from Disk...**.
-3. Pick `build/distributions/goose-idea-0.1.0.zip`.
+3. Pick `build/distributions/goose-idea-<version>.zip`.
 4. Restart the IDE when asked.
 
 **Settings | Plugins | Installed** should now list **Goose Language**.
