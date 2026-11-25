@@ -10,6 +10,13 @@
     inlay hints, folding, code lenses and formatting. Run configurations run, check and build Goose programs,
     and debug them: line breakpoints in .goose files, stepping, the call stack, variables and watches,
     through lldb-dap (or the goose-dap proxy) and the platform's Debug Adapter Protocol client.
+    <p>For debugging, install the goose-debug package for your platform from
+    <a href="https://github.com/SorinS/goose-debugger/releases">goose-debugger's releases</a>
+    (a Goose compiler with <code>-g</code>, its standard library and the native <code>goose-dap</code> adapter),
+    set its <code>bin/goose-debug</code> as the compiler in Settings | Languages &amp; Frameworks | Goose,
+    and have LLVM's <code>lldb-dap</code> installed (on macOS, the Xcode Command Line Tools);
+    building a program for debugging also needs the platform's C compiler.
+    Plugin 0.3.x goes with goose-debugger 0.3.x.</p>
   ]]></description>
 
   <depends>com.intellij.modules.platform</depends>

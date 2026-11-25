@@ -15,9 +15,15 @@ goose-debugger 0.3.x. Patch releases of either are independent.
 
 ## Install
 
-The plugin is not on the JetBrains Marketplace. Build it and install the zip
-([USAGE.md](USAGE.md) goes through it step by step, with a checklist of the
-features to try):
+From the JetBrains Marketplace, as
+[**Goose Language**](https://plugins.jetbrains.com/plugin/36132-goose-language):
+**Settings | Plugins | Marketplace**, search for *Goose Language*, and
+install. The IDE then updates it with its other plugins.
+
+Or build it from source and install the zip ([USAGE.md](USAGE.md) goes
+through it step by step, with a checklist of the features to try). The build
+needs Java 25, the runtime the 2026.2 IDEs bundle, so point `JAVA_HOME` at
+the IDE's:
 
 ```bash
 export JAVA_HOME="/Applications/IntelliJ IDEA.app/Contents/jbr/Contents/Home"
@@ -33,13 +39,34 @@ The plugin needs a Goose compiler that has `goose lsp` (check with
 `goose lsp --probe`). It looks for one by itself (see [Settings](#settings));
 if it finds none, it says so when you open a `.goose` file.
 
-For debugging, the simplest compiler is goose-debugger's release package
-for your platform (goose-debug v0.3.0 on
-[goose-debugger's releases](https://github.com/SorinS/goose-debugger/releases)):
-unpack it anywhere, set the compiler to its `bin/goose-debug`, and leave the
-standard library empty. It brings its own standard library and `goose-dap`,
-which the plugin finds beside the compiler; the one other thing debugging
-needs is LLVM's `lldb-dap` (on macOS, the Command Line Tools have it).
+### For debugging
+
+Debugging needs, besides the plugin:
+
+- **The Goose debugger**: the goose-debug package for your platform from
+  [goose-debugger's releases](https://github.com/SorinS/goose-debugger/releases)
+  (v0.3.0: macOS arm64, Linux x86-64, Windows x64). Unpack it anywhere. It
+  has a Goose compiler with `-g` (`bin/goose-debug`), its own standard
+  library, and the debug adapter `goose-dap` beside the compiler.
+- **lldb-dap**, LLVM's debug adapter, which goose-dap drives:
+  - macOS: the Xcode Command Line Tools (`xcode-select --install`);
+  - Linux: LLVM 16 or newer (`lldb-dap`, `lldb-vscode` or `lldb-dap-NN`,
+    e.g. Ubuntu's `lldb-18`);
+  - Windows: LLVM's installer (`C:\Program Files\LLVM\bin\lldb-dap.exe`).
+- **A C compiler**, since Debug builds the program natively with
+  `goose build -g`: the Command Line Tools' clang on macOS, gcc or clang on
+  Linux, MSVC (Visual Studio Build Tools) on Windows.
+- **Optional, Windows only:** a Python install, which LLVM's lldb needs to
+  show values in Goose form; without it, values show as their generated C.
+  On macOS and Linux lldb brings its own.
+
+Then, in **Settings | Languages & Frameworks | Goose**, set **Compiler** to
+the package's `bin/goose-debug` (`bin\goose-debug.exe` on Windows), leave
+**Standard library** empty, and leave **Debug adapter** on *Auto*: the
+plugin finds `goose-dap` beside the compiler. The same compiler serves the
+language server, so editing and debugging see the same standard library.
+Plugin 0.3.x goes with goose-debugger 0.3.x. [DEBUGGING.md](DEBUGGING.md)
+has the rest.
 
 To check the install, open a `.goose` file: keywords and strings are
 colored, the file has the goose icon, the language services widget in the
@@ -192,7 +219,10 @@ the repository has no Kotlin.
 The build uses the IntelliJ Platform Gradle Plugin 2.x and builds against the
 IntelliJ IDEA installed in `/Applications` (`platformLocalPath` in
 `gradle.properties`; override with `-PplatformLocalPath=/path/to/IDE.app`).
-Gradle needs a JDK 21 or later; the IDE's bundled runtime will do:
+Gradle needs Java 25, the runtime the 2026.2 IDEs run on (the IntelliJ
+Platform Gradle Plugin asks for the target IDE's Java; the code itself is
+compiled for Java 21). The IDE's bundled runtime is one; a JDK 17, 21 or 27
+is not:
 
 ```bash
 export JAVA_HOME="/Applications/IntelliJ IDEA.app/Contents/jbr/Contents/Home"

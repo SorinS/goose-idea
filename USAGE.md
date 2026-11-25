@@ -1,12 +1,19 @@
 # Using the Goose plugin
 
-Step by step: build the plugin, install it, point it at a compiler, and
-check that each feature works. [README.md](README.md) describes the features
-and settings in full.
+Step by step: install the plugin, point it at a compiler, and check that
+each feature works. [README.md](README.md) describes the features and
+settings in full.
+
+The plugin is on the JetBrains Marketplace as
+[**Goose Language**](https://plugins.jetbrains.com/plugin/36132-goose-language):
+**Settings | Plugins | Marketplace**, search for *Goose Language*, install,
+and restart the IDE if asked. Then go on at [step 3](#3-point-it-at-the-compiler).
+Steps 1 and 2 build it from source and install that build instead.
 
 ## 1. Build
 
-Gradle needs a JDK 21 or later; the one bundled with IntelliJ IDEA will do:
+Gradle needs Java 25, the runtime IntelliJ IDEA 2026.2 bundles (a JDK 17,
+21 or 27 does not do):
 
 ```bash
 cd goose-idea
@@ -71,6 +78,31 @@ instead:
 mkdir -p ~/.local/bin && ln -s /path/to/goose.git/build/goose ~/.local/bin/goose
 ```
 
+### To debug as well
+
+A plain `goose` compiler has no debugger. To debug Goose programs, you need:
+
+- **The Goose debugger**: the goose-debug package for your platform from
+  [goose-debugger's releases](https://github.com/SorinS/goose-debugger/releases)
+  (v0.3.0: macOS arm64, Linux x86-64, Windows x64). Unpack it anywhere. It
+  has a Goose compiler with `-g` (`bin/goose-debug`), its own standard
+  library, and the debug adapter `goose-dap` beside the compiler.
+- **lldb-dap**, LLVM's debug adapter, which goose-dap drives:
+  - macOS: the Xcode Command Line Tools (`xcode-select --install`);
+  - Linux: LLVM 16 or newer (`lldb-dap`, `lldb-vscode` or `lldb-dap-NN`,
+    e.g. Ubuntu's `lldb-18`);
+  - Windows: LLVM's installer (`C:\Program Files\LLVM\bin\lldb-dap.exe`).
+- **A C compiler**, since Debug builds the program natively with
+  `goose build -g`: the Command Line Tools' clang on macOS, gcc or clang on
+  Linux, MSVC (Visual Studio Build Tools) on Windows.
+- **Optional, Windows only:** a Python install, which LLVM's lldb needs to
+  show values in Goose form; without it, values show as their generated C.
+  On macOS and Linux lldb brings its own.
+
+Then set **Compiler** to the package's `bin/goose-debug`, with **Standard
+library** empty and **Debug adapter** on *Auto*. The page shows the adapter
+it found, which should be the package's `goose-dap`.
+
 ## 4. Check it works
 
 Open a `.goose` file. Then:
@@ -114,6 +146,20 @@ For a saved setup with arguments, **Run | Edit Configurations...**, **+**,
 **Goose**: pick the action, the program file, its arguments and the working
 directory. Right-clicking a `.goose` file and choosing **Run 'file.goose'**
 makes one for you.
+
+Debugging (with the goose-debug package as the compiler, as above):
+
+| Try | You should see |
+|---|---|
+| Click in the gutter beside a line of `fn main`, then right-click the file, **Debug 'file.goose'** | The program is built with `goose build -g`, and the session stops on the breakpoint. |
+| The Debugger's Frames | Goose names (`main`, `geo::area`); the C `main` and system frames are marked subtle. |
+| Variables | The locals in scope under their Goose names, with Goose values (`Point { x: 3, y: -4 }`). |
+| Step Over / Step Into | One Goose line at a time. |
+| A watch such as `total + 1` | Its value, from Goose names. |
+| A failed `assert` in the program | A stop at that Goose line, with the runtime's message. |
+
+If the session does not start, see [DEBUGGING.md](DEBUGGING.md), "When
+something goes wrong".
 
 ## 5. When something does not work
 
