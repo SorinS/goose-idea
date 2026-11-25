@@ -7,12 +7,14 @@ variables, watches, conditional breakpoints and logpoints. It stops on Goose
 runtime errors (a failed assert, a bounds or overflow check). The debugger
 behind the client is LLDB, through one of two adapters:
 
-- **goose-dap**, the Goose proxy in front of lldb-dap (from the
-  goose-debugger repository, `dap/goose-dap`). The IDE then shows Goose:
-  `geo::area` in the call stack rather than `geo_area_g3`, the locals in
-  scope under their Goose names (`total`, not `total_g` and the
-  temporaries), Goose names in watches, and a stop on a runtime error at the
-  Goose line that failed. It needs Python 3.
+- **goose-dap**, the Goose proxy in front of lldb-dap, from
+  [goose-debugger](https://github.com/SorinS/goose-debugger) (`bin/goose-dap`
+  in its release packages). The IDE then shows Goose: `geo::area` in the
+  call stack rather than `geo_area_g3`, the locals in scope under their
+  Goose names (`total`, not `total_g` and the temporaries), Goose names in
+  watches, and a stop on a runtime error at the Goose line that failed.
+  Since goose-debugger 0.3.0 it is a native program, written in Goose: it
+  needs nothing but lldb-dap. (Up to 0.2.0 it was a Python script.)
 - **lldb-dap**, LLVM's adapter, used as it is. The plugin has it load
   `goose_lldb.py` (shipped with the plugin), so values read as Goose values
   (`Point { x: 3, y: -4 }`, `Color.Green`). Frames, locals and expressions
@@ -23,19 +25,24 @@ Stepping goes one Goose line at a time with either adapter.
 ## What you need
 
 - IntelliJ IDEA, GoLand or CLion 2026.2.
-- A Goose compiler that has `-g` (`goose build --debug-info`): one built with
-  the debugger patches, such as goose.git's `build-debug/goose-debug`. Run
-  `goose help build`; it has to list `--debug-info`. Set it as the compiler in
-  **Settings | Languages & Frameworks | Goose**.
+- A Goose compiler that has `-g` (`goose build --debug-info`). The simplest
+  is goose-debugger's release package for your platform (goose-debug v0.3.0,
+  for macOS arm64, Linux x86-64 and Windows x64): unpack it anywhere and set
+  its `bin/goose-debug` as the compiler in **Settings | Languages &
+  Frameworks | Goose**, with the standard library left empty. The package
+  has its own standard library, and `goose-dap` beside the compiler. A
+  compiler you built with the debugger patches works too (goose.git's
+  `build-debug/goose-debug`); run `goose help build`, which has to list
+  `--debug-info`.
 - lldb-dap:
   - macOS: the Command Line Tools have one
     (`/Library/Developer/CommandLineTools/usr/bin/lldb-dap`;
     `xcode-select --install` installs them).
   - Linux: the `lldb` package, or LLVM's (`lldb-dap`, `lldb-vscode` or
     `lldb-dap-NN`).
-  - Windows: LLVM's installer (`C:\Program Files\LLVM\bin\lldb-dap.exe`). This
-    is untested; see the limits below.
-- For goose-dap: Python 3 and lldb-dap. goose-dap finds lldb-dap itself.
+  - Windows: LLVM's installer (`C:\Program Files\LLVM\bin\lldb-dap.exe`).
+- For goose-dap: nothing more. It comes in goose-debugger's package, and
+  finds lldb-dap itself.
 
 ## Setting it up
 
@@ -62,15 +69,18 @@ options:
   plugin sets a breakpoint on the runtime's `gs_abort`: the stop is in
   `gs_abort`, and the Goose frames that led to it are below it.
 
-An IDE started from the Dock or Finder does not have your shell's PATH. To
-let *Auto* find goose-dap, link it somewhere the plugin looks:
+With goose-debugger's package as the compiler, *Auto* finds its
+`bin/goose-dap` (`bin\goose-dap.exe` on Windows) beside the compiler. With
+another compiler, note that an IDE started from the Dock or Finder does not
+have your shell's PATH; to let *Auto* find goose-dap, link it somewhere the
+plugin looks:
 
 ```
-ln -s ~/Dev/Goose/goose-debugger.git/dap/goose-dap ~/.local/bin/goose-dap
+ln -s /path/to/goose-debug-v0.3.0-…/bin/goose-dap ~/.local/bin/goose-dap
 ```
 
-goose-dap resolves the link and finds its own files. You can also set the
-**Adapter path** to the script.
+goose-dap resolves the link and finds its own files (`../lldb/goose_lldb.py`
+in the package). You can also set the **Adapter path** to it.
 
 ## Debugging
 
@@ -150,8 +160,10 @@ stopping on runtime errors, use the setting above.
 - **LLDB commands** (`goose-locals`, `bt`) cannot be typed in the IDE.
   The platform's Evaluate sends expressions without a REPL context, and
   lldb-dap then evaluates them as C.
-- **Windows** is untested. LLDB has to read the MSVC PDB, and lldb-dap needs
-  its Python DLL on PATH for `goose_lldb.py`.
+- **Windows.** goose-dap and goose-debugger's package are tested there (LLVM's
+  lldb-dap reading the MSVC PDB), but the plugin has not been run on
+  Windows yet. LLVM's lldb needs a Python installed for `goose_lldb.py`;
+  without one, values show as their C.
 - **Breakpoint lines** are not checked against the line table while you set
   them. The adapter moves or rejects them when the session starts.
 

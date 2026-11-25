@@ -5,7 +5,13 @@ for IntelliJ IDEA, GoLand and CLion 2026.2 and later. It does what the
 [VS Code extension](https://github.com/aardappel/goose/tree/main/vscode) does:
 the compiler is the language server (`goose lsp`), and the plugin starts it;
 the extension's TextMate grammar colors keywords, strings and comments, which
-the server's semantic tokens do not cover.
+the server's semantic tokens do not cover. It also debugs Goose programs,
+through the IDE's own Debug Adapter Protocol client and
+[goose-debugger](https://github.com/SorinS/goose-debugger)'s `goose-dap`
+([DEBUGGING.md](DEBUGGING.md)).
+
+The plugin's version follows goose-debugger's: plugin 0.3.x goes with
+goose-debugger 0.3.x. Patch releases of either are independent.
 
 ## Install
 
@@ -26,6 +32,14 @@ zip, and restart the IDE when asked.
 The plugin needs a Goose compiler that has `goose lsp` (check with
 `goose lsp --probe`). It looks for one by itself (see [Settings](#settings));
 if it finds none, it says so when you open a `.goose` file.
+
+For debugging, the simplest compiler is goose-debugger's release package
+for your platform (goose-debug v0.3.0 on
+[goose-debugger's releases](https://github.com/SorinS/goose-debugger/releases)):
+unpack it anywhere, set the compiler to its `bin/goose-debug`, and leave the
+standard library empty. It brings its own standard library and `goose-dap`,
+which the plugin finds beside the compiler; the one other thing debugging
+needs is LLVM's `lldb-dap` (on macOS, the Command Line Tools have it).
 
 To check the install, open a `.goose` file: keywords and strings are
 colored, the file has the goose icon, the language services widget in the
@@ -85,6 +99,22 @@ Running and building:
 - In the Run window, `file:line: error: ...` lines from the compiler link to
   the source.
 
+Debugging ([DEBUGGING.md](DEBUGGING.md) has the details):
+
+- Debug a Goose run configuration (or right-click a `.goose` file, **Debug
+  'file.goose'**): the plugin builds it with `goose build -g` and runs it
+  under LLDB through the IDE's DAP client.
+- Line breakpoints in `.goose` files, conditional breakpoints and logpoints;
+  step over, into and out, one Goose line at a time.
+- With `goose-dap`, the debugger speaks Goose: `geo::area` in the call stack,
+  the locals in scope under their Goose names, Goose values
+  (`Point { x: 3, y: -4 }`, `Color.Green`, resizables as lists), Goose names
+  in watches and Evaluate, the program's globals, and a stop at the Goose
+  line where a runtime error (a failed assert, a bounds or overflow check)
+  happened, with its message.
+- Without `goose-dap`, plain `lldb-dap` works too, with Goose values from the
+  plugin's bundled formatters but the generated C's names.
+
 ## Settings
 
 **Settings | Languages & Frameworks | Goose**, kept per project in
@@ -99,6 +129,9 @@ are the VS Code extension's settings:
 | Entry files | `goose.entryFile` | Program root files, one per line, relative to the project. The server checks the modules they import as part of their program (the `entryFiles` initialization option), and the Goose actions run the first one rather than the current file. |
 | Program arguments | `goose.runArguments` | The program's arguments for Run with JIT, after `--`. |
 | Start the language server | `goose.useLanguageServer` | Off, the plugin gives highlighting and running but no analysis. |
+| Debug adapter | | *Auto* (the default) uses `goose-dap` when it finds one, else `lldb-dap`; *goose-dap* or *lldb-dap* uses that one only. |
+| Adapter path | `goose.debugAdapterPath` | The adapter's executable, or a command on `PATH`. Empty searches for it, starting beside the compiler (where goose-debugger's package has `goose-dap`). The page shows the adapter that will be used. |
+| Stop on Goose runtime errors | | On by default: the debugger stops where a failed assert or a bounds or overflow check aborts the program. |
 
 Changing the compiler, standard library, entry files or the server switch
 restarts the server. The compiler and the server run with the environment
