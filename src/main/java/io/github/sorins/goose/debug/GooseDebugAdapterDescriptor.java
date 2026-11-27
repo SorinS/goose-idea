@@ -48,7 +48,29 @@ public final class GooseDebugAdapterDescriptor extends DebugAdapterDescriptor<Go
 
     @Override
     public @NotNull DapBreakpointsDescription getBreakpointsDescription() {
-        return new DapBreakpointsDescription(GooseLineBreakpointType.class, GooseRuntimeErrorBreakpointType.class);
+        return breakpointsDescription(GooseLineBreakpointType.class, GooseRuntimeErrorBreakpointType.class);
+    }
+
+    /**
+     * The experimental API's constructor changed: 2026.2 (262) takes the
+     * source and exception breakpoint types, 2026.3 (263) adds a third, for
+     * function breakpoints, whose default only Kotlin callers get. Goose has
+     * no function breakpoints, so it is null there, which is that default.
+     * The constructor is looked up rather than linked, so one build runs on
+     * both.
+     */
+    static @NotNull DapBreakpointsDescription breakpointsDescription(@NotNull Class<?> source, @NotNull Class<?> exception) {
+        try {
+            try {
+                return DapBreakpointsDescription.class.getConstructor(Class.class, Class.class, Class.class)
+                        .newInstance(source, exception, null);
+            } catch (NoSuchMethodException e) {
+                return DapBreakpointsDescription.class.getConstructor(Class.class, Class.class)
+                        .newInstance(source, exception);
+            }
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("This IDE's DapBreakpointsDescription has no constructor Goose knows", e);
+        }
     }
 
     /**

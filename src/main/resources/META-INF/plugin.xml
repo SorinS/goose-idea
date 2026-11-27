@@ -22,10 +22,13 @@
   <depends>com.intellij.modules.platform</depends>
   <depends>com.intellij.modules.lsp</depends>
   <depends>org.jetbrains.plugins.textmate</depends>
-  <!-- The platform's DAP client. It is a content module with no plugin alias,
-       so it is named here rather than with <depends>. -->
+  <!-- The platform's DAP client and the debugger API (com.intellij.xdebugger)
+       it builds on. They are content modules with no plugin alias, so they
+       are named here rather than with <depends>; since 2026.3 the debugger
+       API is no longer on the core class path, so it must be named too. -->
   <dependencies>
     <module name="intellij.platform.dap"/>
+    <module name="intellij.platform.debugger"/>
   </dependencies>
 
   <extensions defaultExtensionNs="com.intellij">

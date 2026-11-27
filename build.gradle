@@ -27,6 +27,10 @@ dependencies {
         bundledPlugin('org.jetbrains.plugins.textmate')
         // The platform's DAP client (experimental API) for Goose debugging.
         bundledModule('intellij.platform.dap')
+        // The debugger API (com.intellij.xdebugger), off the core class path since 2026.3.
+        bundledModule('intellij.platform.debugger')
+        // The debug session test reads the frames tree (com.intellij.xdebugger.impl).
+        testBundledModule('intellij.platform.debugger.impl.shared')
         testFramework(TestFrameworkType.Platform.INSTANCE)
     }
     testImplementation 'junit:junit:4.13.2'
